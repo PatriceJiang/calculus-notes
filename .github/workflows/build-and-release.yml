@@ -1,0 +1,97 @@
+name: 构建并发布 PDF
+
+on:
+  # 当推送标签时触发
+  push:
+    tags:
+      - 'v*'
+  # 支持手动触发
+  workflow_dispatch:
+
+# 配置权限
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-and-release:
+    name: 构建并发布微积分笔记
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. 检出代码仓库
+      - name: 检出代码
+        uses: actions/checkout@v4
+      
+      # 2. 安装 LaTeX 环境
+      - name: 安装 LaTeX 环境
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            texlive-xetex \
+            texlive-latex-base \
+            texlive-latex-recommended \
+            texlive-latex-extra \
+            texlive-fonts-recommended \
+            texlive-fonts-extra \
+            texlive-lang-chinese
+      
+      # 3. 赋予构建脚本执行权限
+      - name: 设置脚本执行权限
+        run: chmod +x full-build.sh clear.sh
+      
+      # 4. 执行构建脚本
+      - name: 执行构建
+        run: ./full-build.sh
+      
+      # 5. 验证 PDF 文件是否生成
+      - name: 验证构建产物
+        run: |
+          if [ ! -f "calculus-note.pdf" ]; then
+            echo "错误: PDF 文件未生成"
+            exit 1
+          fi
+          echo "PDF 文件已成功生成"
+          ls -lh calculus-note.pdf
+      
+      # 6. 提取版本信息
+      - name: 获取版本信息
+        id: get_version
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+          else
+            VERSION="dev-$(git rev-parse --short HEAD)"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "发布版本: $VERSION"
+      
+      # 7. 创建 Release 并上传 PDF
+      - name: 创建 GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_version.outputs.version }}
+          name: 微积分笔记 ${{ steps.get_version.outputs.version }}
+          body: |
+            ## 📚 微积分学教程笔记
+            
+            本次发布包含完整的微积分学习笔记 PDF 文档。
+            
+            ### 内容涵盖
+            - 极限论：数列极限、函数极限、连续性
+            - 微分学：导数、微分、偏导数、泰勒公式、微分中值定理
+            - 积分学：不定积分、定积分、重积分、曲线曲面积分、含参积分、瑕积分
+            - 级数理论：数项级数、函数项级数、傅里叶级数
+            
+            ### 下载
+            请下载下方的 `calculus-note.pdf` 文件。
+            
+            ---
+            构建时间: ${{ github.event.head_commit.timestamp }}
+            提交 SHA: ${{ github.sha }}
+          files: |
+            calculus-note.pdf
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
