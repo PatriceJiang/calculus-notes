@@ -23,7 +23,7 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v4
       
-      # 2. 安装 LaTeX 环境
+      # 2. 安装 LaTeX 环境和 Asymptote
       - name: 安装 LaTeX 环境
         run: |
           sudo apt-get update
@@ -34,17 +34,25 @@ jobs:
             texlive-latex-extra \
             texlive-fonts-recommended \
             texlive-fonts-extra \
-            texlive-lang-chinese
+            texlive-lang-chinese \
+            asymptote
       
       # 3. 赋予构建脚本执行权限
       - name: 设置脚本执行权限
-        run: chmod +x full-build.sh clear.sh
+        run: chmod +x full-build.sh clear.sh build-pic.sh
       
-      # 4. 执行构建脚本
-      - name: 执行构建
+      # 4. 构建图片文件
+      - name: 构建图片
+        run: |
+          echo "开始构建 Asymptote 图片..."
+          ./build-pic.sh
+          echo "图片构建完成"
+      
+      # 5. 执行 LaTeX 构建脚本
+      - name: 执行 LaTeX 构建
         run: ./full-build.sh
       
-      # 5. 验证 PDF 文件是否生成
+      # 6. 验证 PDF 文件是否生成
       - name: 验证构建产物
         run: |
           if [ ! -f "calculus-note.pdf" ]; then
@@ -54,7 +62,7 @@ jobs:
           echo "PDF 文件已成功生成"
           ls -lh calculus-note.pdf
       
-      # 6. 提取版本信息
+      # 7. 提取版本信息
       - name: 获取版本信息
         id: get_version
         run: |
@@ -66,7 +74,7 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "发布版本: $VERSION"
       
-      # 7. 创建 Release 并上传 PDF
+      # 8. 创建 Release 并上传 PDF
       - name: 创建 GitHub Release
         uses: softprops/action-gh-release@v1
         with:
